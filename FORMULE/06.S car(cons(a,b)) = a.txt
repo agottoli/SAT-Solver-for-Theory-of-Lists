@@ -1,0 +1,1 @@
+car(cons(a,b)) = a

@@ -1,0 +1,335 @@
+% -*- coding: utf-8 -*-
+
+% Relazione implementazione Algoritmo di Chiusura di Congruenza
+% per SODDISFACIBILITA' della Teoria delle Liste
+
+\documentclass[a4paper,11pt]{article} %{report} %{article}
+\usepackage[italian]{babel} % per scrivere in italiano
+\usepackage[utf8]{inputenc} % per usare lettere accentate direttamente ne .tex
+\usepackage{amssymb, amsmath} % per simboli e ambienti matematici
+%\usepackage{fourier} % per font utopia
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\pagestyle{plain}
+
+\newcommand{\campo}{\texttt}
+
+%\hyphenation{Ackerman} % per non sillabare la parola
+
+%\setcounter{secnumdepth}{-2}
+\setcounter{tocdepth}{2} % per inserire nell'indice fino a 2=subsection
+
+%\evensidemargin=1cm 
+\oddsidemargin=1.3cm
+\headsep = 0cm
+\textheight = 640pt
+\textwidth = 380pt
+
+\begin{document}
+
+\title{Implementazione della procedura di soddisfacibilit\`a per la Teoria delle Liste}
+\author{Alessandro Gottoli vr352595}
+%\date{}
+\maketitle
+%\tableofcontents % genero l'indice (doppia compilazione)
+
+\section*{Introduzione}
+La procedura di soddisfacibilit\`a per la teoria delle liste
+di questo progetto \`e stato implementato nel linguaggio di 
+programmazione Java per essere eseguibile su diversi sistemi
+operativi ed \`e stato testato su Windows e Linux.
+Il progetto si divide in tre: interfaccia, parser, chiusura di congruenza.
+%\vspace{-1ex}
+%\begin{itemize}
+%\item \hyperref[sec: interfaccia]{Interfaccia}
+%\vspace{-1ex}
+%\item \hyperref[sec: parser]{Parser}
+%\vspace{-1ex}
+%\item \hyperref[sec: algo cc]{Algoritmo di chiusura di congruenza}
+%\end{itemize}
+\vspace{-1ex}
+\section{Interfaccia}\label{sec: interfaccia}
+L'inserimento della formula avviene tramite un interfaccia grafica e si pu\`o
+digitare direttamente nell'area di testo oppure aprire comodamente da file. La
+stringa contenuta nel file viene visualizzata, dando modo all'utente di modificarla
+e salvarla in un altro file (con ``alert'' in caso si tentasse di sovrascrivere un file esistente).
+Per\`o in formule molto lunghe questa operazione appesantirebbe troppo l'interfaccia, 
+quindi se la dimensione \`e maggiore di 50000 caratteri, si indica solamente il percorso del file
+caricato.
+Tutti i pulsanti vengono abilitati solo all'occorrenza, limitando al minimo i possibili errori degli utenti.
+Per esempio; %se non viene digitata o 
+%caricata nessuna formula, 
+il pulsante ``Start'' %che avvia la procedura 
+che avvia l'analisi non \`e attivo se la formula \`e vuota; 
+oppure finch\'e l'algoritmo \`e in esecuzione, la barra %che consente di cambiare tipo di algoritmo
+dei menu
+%e operazioni sui file 
+risulta non attive e l'area di testo non modificabile, 
+costringendo l'utente ad attendere la fine dell'algoritmo 
+o a terminarla con il pulsante ``Abort'' che appare quando inizia l'algoritmo.
+
+Per apprezzare %appieno 
+l'interfaccia grafica occorre utilizzare formule corpose, cos\`i
+si noter\`a %in 
+che fase dell'algoritmo % ci troviamo. 
+\`e in esecuzione.
+%Infatti per prima cosa si visualizzer\`a la
+%scritta che informa che si sta facendo il parsing e la costruzione del grafo con 
+Durante la fase di parsing verr\`a visualizzata
+una
+barra di caricamento che indica la progressione con la percentuale elaborata. 
+%Quando questa fase sar\`a completata
+%sar\`a segnalato indicando anche il tempo impiegato e apparir\`a l'informazione che si 
+%sta eseguendo 
+Per l'algoritmo di chiusura di congruenza %; e siccome in questa fase 
+non è 
+possibile stimare %a priori 
+il tempo necessario, %si indica semplicemente che il 
+%programma sta elaborando con 
+quindi si usa una barra ``indeterminata'' animata per indicare che il programma sta elaborando.
+%Qualora la computazione risultasse troppo lunga \`e possibile terminarla premendo il tasto
+%``Abort'' che apparir\`a al posto dello ``Start''.
+%
+%Senza dilungarci troppo, lasciamo l'interfaccia si presenti da sola quando si testeranno
+%le formule di esempio allegate assieme all'implementazione.
+Al completamento di ogni fase verr\`a visualizzato il tempo impiegato.
+Passiamo alle fasi pi\`u importanti.  
+
+\vspace{-1ex}
+\section{Parser}\label{sec: parser}
+Una volta inserita la formula della quale vogliamo calcolare la soddisfacibilit\`a,
+questa stringa viene passata ad un parser che la analizza carattere per carattere effettuando
+contemporaneamente analisi sintattica e costruzione del grafo.
+\vspace{-1ex}
+\subsection{Analisi sintattica}
+% = != !atom(not atom)
+L'analisi sintattica controlla che la formula sia stata scritta rispettando le seguenti 
+regole sintattiche: 
+\vspace{-1ex}
+\begin{description}
+\item[elemento:] nome senza spazi. Esempio: elem.
+\vspace{-1.5ex}
+\item[funzione:] il nome rispetta la regola per l'elemento, 
+	i parametri sono a loro volta funzioni o elementi e sono racchiusi tra parentesi tonde `(' e `)'
+	e separati %da virgole 
+	`,' o %punti e virgole 
+	`;'. Esempio: fun(el, g(a)).
+\vspace{-1.5ex}
+\item[uguaglianze/disuguaglianze:] sono costituite da funzioni o elementi separati da `='/`!='. Esempio: c = fun(b), a != fun(b).
+%\vspace{-1ex}
+%\item[disuguaglianze:] sono come le uguaglianze ma si usa i caratteri `!='.% Esempio: elem != fun(b).
+\vspace{-1.5ex}
+\item[atom:] viene trattato come una funzione con un solo parametro e per indicare la sua negazione
+	si fa precedere da `!'.% Esempio: atom(c). %
+\vspace{-1.5ex}
+\item[clausole:] sono uguaglianze, disuguaglianze, atom o !atom separati da virgole `,' 
+	o punti e virgole `;'. Esempio: a = f(b); !atom(g(a,b)).% , el != g(a) , atom(a)
+\end{description}
+\vspace{-1ex}
+Gli spazi vengono tutti ignorati tranne quelli presenti nel nome di una funzione o di un elemento
+(che restituiscono errore sintattico) per dare pi\`u flessibilit\`a all'utente di scrivere 
+le formule nel formato che preferisce.
+
+%L'analisi semantica invece controlla che gli elementi e le formule abbiano
+%sempre la stessa ariet\`a. Questo ci garantisce che lo stesso nome non possa essere usato sia
+%per funzioni con un numero diverso di argomenti sia per indicare un elemento.
+%Per esempio la formula ``f(a,b) = f'' restituir\`a errore sintattico perch\'e \`e scritta nella
+%sintassi giusta, ma ``f'' viene usata nel modo sbagliato.
+
+\vspace{-1ex}
+\subsection{Costruzione del grafo}
+La costruzione del grafo istanzia degli oggetti ``nodi'' ed ognuno rappresenta una funzione
+o un elemento riconosciuto durante il parsing. Siccome nella stringa un elemento pu\`o
+comparire pi\`u di una volta, \`e importante non duplicare il nodo corrispondente a quell'elemento.
+Controllare %ogni volta 
+se un nodo %\`e gi\`a stato creato 
+esisste gi\`a
+pu\`o essere costoso quindi
+serve una struttura dati che permetta %di trovare ed 
+estrarre (se c'\`e) il nodo in questione
+nel minor tempo possibile. Per questo motivo si \`e scelto di usare una \emph{tabella hash}
+%di tipo 
+ad \emph{indirizzamento aperto} 
+%per risolvere le collisioni.
+in caso di collisioni.
+La scelta %dell'indirizzamento
+%aperto 
+\`e dovuta al fatto che se si verifica una collisione possiamo utilizzare il \emph{doppio hashing}
+%che prevede un'
+con esplorazione %delle celle 
+della tabella in modo diverso per ogni chiave, velocizzando
+l'estrazione. Rispetto al metodo del concatenamento, inoltre non usa %ndo 
+liste per memorizzare i nodi che collidono
+%nella stessa cella, 
+quindi
+non si consumer\`a ulteriore memoria. % istanziando nuovi oggetti.
+%Un altra 
+Caratteristica fondamentale \`e che i nodi non vengono mai eliminati e quindi cancellati 
+dalla tabella e questa \`e proprio la situazione ideale per questo tipo di tabella.
+
+In fase di costruzione, ogni nodo `funzione' viene collegato tramite il campo `\campo{param}' ai nodi 
+che sono suoi parametri e siccome sui parametri non ci sono operazione di unione si \`e 
+scelto di usare un array visto che sappiamo esattamente l'ariet\`a di una funzione. 
+Dualmente, ai nodi argomenti viene aggiunto il nodo funzione al
+campo `\campo{ccpar}' che rappresenta i suoi padri. 
+Qui per\`o %non \`e possibile 
+l'uso dell'array
+\`e improponibile
+perch\'e questo campo %che 
+%varia %sia durante la costruzione del grafo sia durante
+%l'algoritmo di chiusura di congruenza
+\`e soggetto a frequenti unioni, quindi si \`e
+dovuti ricorrere ad un altra struttura dati diversa %(la scelta verr\`a specificata successivamente~[\ref{sec: algo cc}]).
+come vedremo successivamente.
+%A dir la verit\`a sono stati implementati due algoritmi
+%Oltre a questi 
+Poi \`e presente anche il campo `\campo{fn}'
+che identifica il nome della funzione del nodo. 
+
+Per gestire il fatto che un nodo deve essere atomo
+o lista sono stati inseriti i booleani `\campo{atom}' e `\campo{cons}' che se messi a true indicano
+rispettivamente se un nodo \`e atomo o !atom. Anche se sembra che siano rindondanti, perch\'e 
+una situazione esclude l'altra, si sono usati due campi distinti perch\'e se sono messi entrambi a
+false significa che non si sa di che tipo sia il nodo.
+Questo ci permette di effettuare la prima ottimizzazione riconoscendo come insoddisfacibili le stringhe 
+che contengono un elemento `cons' al posto di `atom' direttamente durante il parsing,
+ per esempio car(cons(x,y)) oppure cons(cons(a,b),b). 
+Poi il campo `\campo{find}' punta al 
+rappresentante della classe di congruenza a cui appartiene il nodo (all'inizio ogni nodo appartiene
+ad una classe differente, quindi punter\`a a se stesso), in questo modo ogni classe \`e rappresentata
+come un albero e le varie classi come una foresta.
+Per 
+ottimizazione %controllare le disuguaglianze 
+si \`e infine aggiunto il campo `\campo{diversi}' che contiene
+tutti i nodi che non possono appartenere alla stessa classe del nodo e anche qui \`e importante scegliere
+una buona struttura dati.
+
+Assieme al grafo vengono poi costruite due code fifo che contengono coppie di nodi che sono in uguaglianza
+o disuguaglianza tra loro. In questo modo si passa la coda delle uguaglianze all'algoritmo di chiusura
+di congruenza e in caso questi restituisca ``soddisfacibile'', si verificano che anche le disuguaglianze 
+siano rispettate.
+
+\vspace{-1ex}
+\section{Algoritmo di chiusura di congruenza}\label{sec: algo cc}
+Per ogni uguaglianza rilevata nel parsing, si effettua il \emph{merge}. % come visto in classe.
+Gi\`a in questa fase si possono fare delle ottimizzazioni. Cominciamo col fatto che invece di
+passare i nodi al merge, si passano direttamente i loro \emph{rappresentanti} e solamente 
+se questi sono diversi. Questo ci permette di non effettuare %gli stessi 
+controlli rindondanti risparmiando le operazioni di \emph{find}(n1), \emph{find}(n2) e il loro confronto.
+Infatti notiamo che anche l'algoritmo per trovare gli elementi congruenti
+le fa gi\`a
+prima
+%su cui fare il 
+del merge. % in quel momento. 
+In pi\`u, nella \emph{union} quando si imposta un nodo come rappresentante dell'altro
+creerebbe una catena di nodi fino ad arrivare al vero rappresentante; quindi 
+trovare il rappresentate sarebbe dispendioso perch\'e bisognerebbe scorrerla tutta.
+Il tempo richiesto verrebbe ridotto al minimo adottando l'accorgimento precedente.
+Comunque si pu\`o sempre adottare la \emph{compressione dei cammini} che durante la
+risalita della catena fa puntare il campo \campo{find} di ogni nodo incontrato al 
+vero rappresentante.
+
+Passiamo ad analizare il campo \campo{ccpar}. 
+Qui occorre scegliere attentamente la struttura dati perch\'e i nodi in esso contenuti
+vengono continuamente uniti nella \emph{union}. %A prima occhiata s
+Si potrebbe decidere
+di utilizzare una lista con puntatore al primo ed all'ultimo elemento %cos\`i si
+%pu\`o unire in coda 
+con unione in tempo costante, per\`o se andiamo a modificare cos\`i una lista
+si incontra un problema quando chiamiamo la funzione \emph{espandiCongruenze} 
+che analizza ogni possibile coppia tra i campi \campo{ccpar} per trovare qualche 
+nuova congruenza su cui fare il merge. %da propagare sulle liste precedenti all'unione. 
+% e poi viene controllata ogni
+%ogni possibile coppia tra i nodi del campo prima che l'unione due 
+%
+Quindi nel `merge' si deve salvare il campo \campo{ccpar} dei due nodi dati in input.
+Si sono pensate tante soluzioni, la pi\`u semplice \`e quella di salvare i nodi
+contenuti in \campo{ccpar} in due array stando sicuri che li sarebbero rimasti inalterati
+anche dopo l'unione. Questo per\`o ha un costo \emph{lineare} nel numero di nodi contenuti
+nel campo.
+Poi c'\`e da considerare i doppi. Attaccando semplicemente una lista in fondo all'altra
+non ci permette di analizzare i nodi ripetuti e questo, oltre a consumare risorse,
+ci aumenterebbe il numero delle coppie da analizzare.
+
+A questo punto si sono sviluppate due diverse implementazioni, una per gestire
+efficientemente i doppi e l'altra cercando di usufruire dell'unione in tempo lineare. % sarebbe molto interessante.
+Per il primo scopo si \`e utilizzata una \emph{lista ordinata} cos\`i ogni volta che cerco di unire
+un nodo che c'\`e gi\`a, lo trovo mentre cerco di inserirlo nella posizione ordinata.
+Inoltre essendo entrambe gi\`a ordinate mi basta scorrerle entrambe solo una volta
+risultando lineare nella somma del numero di nodi. In questo modo ci accorgiamo che
+conviene costruire una nuova lista ordinata invece di unirla a quella del rappresentante.
+Il tempo necessario \`e sempre lineare, per\`o
+%Cos\`i 
+non c'\`e bisogno di salvare le liste originali in un array.
+Per il secondo scopo invece si \`e creata una struttura dati ad hoc chiamata \emph{DoppiaLista}
+che non \`e altro che una lista doppiamente concatenata nella quale ci sono dei campi che
+puntano alle due liste che la compongono cos\`i le liste sottostanti rimangono inalterate
+e si pu\`o chiamare l'\emph{espandiCongruenze} su di esse. Evitando la copia negli array 
+(come nel caso precedente) ed avendo un unione costante!.  Ma non \`e tutto oro quello
+che luccica, infatti in fase implementativa si \`e notato che non gestendo gli elementi doppi
+si ha uno spreco di memoria importante ed %le possibili combinazioni tra elementi gi\`a analizzati in
+\emph{espandiCongruenze} considera combinazioni gi\`a incontrate in precedenza.
+%precedenza crescono in maniera importante. 
+Per ridurre questo fenomeno nell'\emph{espandiCongruenze} si \`e implementato un meccanismo 
+di rimozione dei doppi, vanificando di fatto il vantaggio.
+In entrambi i casi si \`e utilizzato l'ottimizzazione dell'\emph{unione per rango}
+in modo da unire il pi\`u piccolo al pi\`u grande, cos\`i i cammini verso il rappresentanti
+vengono allungati di uno solo sul numero minore di nodi.
+Una caratteristica importante di entrambe le liste \`e l'estrazione in tempo costante
+di ogni elemento se preso in ordine (proprio come accade in \emph{espandiCongruenze})
+siccome la lista viene scansionata sempre tutta si utilizza un campo aggiuntivo \campo{index}
+che ad ogni chiamata restituisce l'elemento puntato e si agiorna sul successivo.
+
+Una volta completate le merge e le uguaglianze, ci restano da controllare le disuguaglianze
+%trovate nel parsing 
+cos\`i confrontiamo i rappresentanti dei nodi che devono essere
+diversi. 
+Per\`o cos\`i facendo ci accorgiamo solo alla fine di una disuguaglianza che 
+non viene rispettata magari dopo la prima merge. Per questo %si \`e provveduto alla
+%seguente ottimizzazione.
+%In ogni nodo si \`e inserita una lista dei nodi %con i quali non deve condividere
+%lo stesso rappresentante. Questa lista 
+%che rappresenta i 
+\`e utile il campo ``\campo{diversi}'' che viene 
+mantenuto %aggiornata 
+\emph{solo} nel rappresentante aggiungendo %i nodi contenuti
+%nei nodi che si aggiungono. 
+quelli
+%nei campi dei nodi della sua stessa classe
+di tutta la sua classe.
+Questo campo viene controllato dopo ogni \emph{union}
+cos\`i ci accorgeremmo tempestivamente di una eventuale insoddisfacibilit\`a.
+Anche qui sono state fatte diverse prove. La lista ordinata \`e quella pi\`u
+facile da gestrire e non rallenta troppo l'esecuzione. Si \`e provato anche una tabella
+hash particolare (\emph{HashOpenPlusList}) nella quale vengono usate delle liste
+per avere subito accessibili i nodi senza dover scandire tutte le celle della tabella.
+%Nella fase di parsing viene riempita con i diversi una lista temporanea di supporto dell'hashtable, 
+%e poi quando il grafo \`e completato si usa un metodo che crea l'effettiva tabella 
+Questa classe crea tabelle
+dalle dimensioni opportune (senza troppo spreco di memoria). 
+%nella quale vengono copiati i nodi.
+Questo %ulteriore passo 
+rallenta un po' l'algoritmo per\`o permette di non dover trovare un compromesso
+sulla dimensione iniziale della tabella evitando dimensioni %che in alcuni casi risulterebbe 
+esagerate %ed in altri
+%magari si \`e costretti a 
+o frequenti rehash. 
+Utilizzando questa hashtable
+basta controllare che la classe di equivalenza di un nodo sia disgiunta dalla
+tabella dei diversi.
+
+Le diverse implementazioni comportano che le ``merge'' 
+possono essere eseguite in ordine diverso
+tra le due soluzioni, quindi si \`e analizzato il caso peggiore %per il rilevamento 
+che si ha quando una formula \`e soddisfacibile perch\'e in entrambi i casi vengono
+analizzate tutte.
+Dai rilevamenti fatti risulta pi\`u efficiente la seconda versione con ``DoppiaLista'' costruita ad hoc.
+La differenza non si nota tanto nell'esecuzione dell'algoritmo di chiusura di congruenza,
+ma nella costruzione del grafo.
+ 
+
+%, questo
+%ha creato dei problemi, perch\'e prima che questi campi vengano letti nella funzione chiamata
+%\emph{espandiCongruenze} 
+
+\end{document}
